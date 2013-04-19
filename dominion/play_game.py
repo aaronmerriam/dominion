@@ -1,8 +1,9 @@
 from .moderator import Game
 
-from .bots import SimpleBuyStrategy
+from .bots import SimpleBuyStrategy, RandomActionStrategy
 
-game = Game((SimpleBuyStrategy, SimpleBuyStrategy))
+#game = Game((SimpleBuyStrategy, RandomActionStrategy))
+game = Game((RandomActionStrategy, RandomActionStrategy))
 
 if __name__ == '__main__':
     game.initialize_game()

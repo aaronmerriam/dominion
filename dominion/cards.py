@@ -1,5 +1,8 @@
 from random import shuffle
 from itertools import chain
+from functools import partial
+
+from .actions import bonus_cards, bonus_treasure, bonus_buys, bonus_actions
 
 
 class BaseCard(object):
@@ -7,11 +10,23 @@ class BaseCard(object):
     is_action = False
     is_treasure = False
     is_victory = False
-    extra_actions = 0
-    extra_buys = 0
-    extra_cards = 0
-    extra_money = 0
+    bonus_actions = 0
+    bonus_buys = 0
+    bonus_cards = 0
+    bonus_treasure = 0
+    treasure_value = 0
     victory_points = 0
+    events = None
+
+    def __init__(self):
+        if self.events is None:
+            events = []
+            events.append(self.bonus_actions and partial(bonus_actions, self.bonus_actions))
+            events.append(self.bonus_buys and partial(bonus_buys, self.bonus_buys))
+            events.append(self.bonus_cards and partial(bonus_cards, self.bonus_cards))
+            events.append(self.bonus_treasure and partial(bonus_treasure, self.bonus_treasure))
+            events = filter(bool, events)
+            self.events = events
 
     def __unicode__(self):
         return self.__class__.__name__
@@ -20,7 +35,22 @@ class BaseCard(object):
         return self.victory_points
 
     def get_treasure_value(self):
-        return self.extra_money
+        return self.treasure_value
+
+    def get_events(self):
+        return self.events
+
+
+class Action(BaseCard):
+    is_action = True
+
+
+class Market(Action):
+    cost = 5
+    treasure_value = 1
+    bonus_cards = 1
+    bonus_actions = 1
+    bonus_buys = 1
 
 
 class Treasure(BaseCard):
@@ -29,17 +59,17 @@ class Treasure(BaseCard):
 
 class Copper(Treasure):
     cost = 0
-    extra_money = 1
+    treasure_value = 1
 
 
 class Silver(Treasure):
     cost = 3
-    extra_money = 2
+    treasure_value = 2
 
 
 class Gold(Treasure):
     cost = 6
-    extra_money = 3
+    treasure_value = 3
 
 
 class Victory(BaseCard):

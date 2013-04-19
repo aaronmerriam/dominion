@@ -2,7 +2,7 @@ import sys
 import logging
 import datetime
 
-from .cards import Copper, Silver, Gold, Estate, Duchy, Province, CardCollection
+from .cards import Market, Copper, Silver, Gold, Estate, Duchy, Province, CardCollection
 from .exceptions import WinCondition, ProvincesDepleted, ActionsDepleted
 
 
@@ -13,7 +13,7 @@ def get_initial_hand():
 
 def get_logger(name='dominion', filename=None, level=logging.DEBUG):
     logger = logging.getLogger(name)
-    handler = logging.FileHandler(filename or datetime.datetime.now().strftime('%Y-%m-%d-%f.log'))
+    handler = logging.FileHandler(filename or datetime.datetime.now().strftime('logs/%Y-%m-%d-%f.log'))
     formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -29,7 +29,7 @@ class Game(object):
     turn = None
     winner = None
     log_level = DEFAULT_LOG_LEVEL
-    MAX_ROUNDS = 40
+    MAX_ROUNDS = 90
 
     def __init__(self, player_classes):
         assert len(player_classes) > 1, 'Cannot initiate a game with less than 2 players'
@@ -48,16 +48,11 @@ class Game(object):
     def get_player_count(self):
         return len(self.players)
 
-    def buy_card(self, card):
-        assert self.current_player, 'No current player set'
-        assert card in self.supply.cards, 'This card is not available from the supply.'
-        assert self.supply.cards[card], 'The supply is out of this card.'
-        card = self.supply.cards[card].draw_card()
-        self.log(logging.INFO, 'Player {0}: BUY "{1}"'.format(self.get_turn(), card))
-        return card
+    def get_current_player(self):
+        return self.players[self.get_turn()]
 
     def trash_card(self, card):
-        assert self.current_player, 'No current player set'
+        assert self.get_current_player(), 'No current player set'
         self.log(logging.INFO, 'Player {0}: TRASH "{1}"'.format(self.get_turn(), card))
         self.trash.add_cards(card)
 
@@ -107,11 +102,55 @@ class Game(object):
 
     def process_turn(self, player):
         self.log(logging.INFO, 'Beginning Player {0} Turn'.format(self.get_turn()))
-        self.current_player = player
-        player.do_turn()
-        self.current_player = None
+        turn = Turn(self)
+        player.do_turn(turn)
+        assert not turn.cards, 'Player left cards in play'
         self.supply.check_win_conditions()
         self.log(logging.INFO, 'Finished Player {0} Turn'.format(self.get_turn()))
+
+
+class Turn(object):
+    actions = 1
+    buys = 1
+    treasure = 0
+
+    def __init__(self, game):
+        self.game = game
+        self.cards = CardCollection()
+
+    def get_event_kwargs(self):
+        return {
+            'turn': self,
+            'player': self.game.get_current_player(),
+            'game': self.game,
+        }
+
+    def play_action(self, card):
+        assert self.actions, 'No more actions left'
+        assert card.is_action, 'Non-action card played as action'
+        self.actions -= 1
+        self.game.log(logging.INFO, 'Player {0}: ACTION "{1}"'.format(self.game.get_turn(), card))
+        for event in card.events:
+            event(**self.get_event_kwargs())
+        self.cards.add_cards(card)
+
+    def spend_treasure(self, *cards):
+        assert all(card.is_treasure for card in cards)
+        for card in cards:
+            self.game.log(logging.INFO, 'Player {0}: SPENT "{1}"'.format(self.game.get_turn(), card))
+        self.treasure += sum(card.treasure_value for card in cards)
+        self.cards.add_cards(*cards)
+
+    def buy_card(self, card):
+        assert self.buys, 'No more buys left'
+        assert card in self.game.supply.cards, 'This card is not available from the supply.'
+        assert self.game.supply.cards[card], 'The supply is out of this card.'
+        assert card.cost <= self.treasure, 'You cannot afford that card'
+        card = self.game.supply.cards[card].draw_card()
+        self.treasure -= card.cost
+        self.buys -= 1
+        self.game.log(logging.INFO, 'Player {0}: BUY "{1}"'.format(self.game.get_turn(), card))
+        self.cards.add_cards(card)
 
 
 class Supply(object):
@@ -123,10 +162,15 @@ class Supply(object):
         (Duchy, 25),
         (Province, 12),
     ))
+    ACTION_CARDS = dict((
+        (Market, 12),
+    ))
 
     def __init__(self, action_card_classes=[]):
         self.cards = {}
         for Card, pile_size in self.BASE_CARDS.iteritems():
+            self.cards[Card] = CardCollection(*(Card() for i in xrange(pile_size)))
+        for Card, pile_size in self.ACTION_CARDS.iteritems():
             self.cards[Card] = CardCollection(*(Card() for i in xrange(pile_size)))
 
     @property
