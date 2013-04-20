@@ -34,3 +34,12 @@ some of which may require intervention by the bot.
 - select cards from others cards to steal
 - discard, draw, and then repeat?
 
+
+# Areas to improve
+
+- Turn might should hold the `hand` of cards.
+- `CardCollection` is hard to work with.
+  - give me all the treasure/action cards
+  - pop out all of the treasure/action cards
+  - pop out the first X card.
+  - 

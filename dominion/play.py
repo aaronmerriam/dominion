@@ -1,6 +1,6 @@
-from .moderator import Game
+from dominion.core import Game
 
-from .bots import SimpleBuyStrategy, RandomActionStrategy
+from dominion.bots import SimpleBuyStrategy, RandomActionStrategy
 
 #game = Game((SimpleBuyStrategy, RandomActionStrategy))
 game = Game((RandomActionStrategy, RandomActionStrategy))

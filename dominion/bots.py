@@ -1,7 +1,7 @@
 import logging
 from random import randint, shuffle
 
-from .cards import CardCollection, Province, Copper, Gold, Silver
+from .cards import CardCollection, Province, Copper, Gold, Silver, pop_treasures, pop_actions
 
 
 class BasePlayer(object):
@@ -9,8 +9,6 @@ class BasePlayer(object):
         self.game = game
         self.deck = deck
         self.discard = CardCollection()
-        self.hand = CardCollection()
-        self.refill_hand()
 
     def victory_point_count(self):
         full_deck = self.hand + self.deck + self.discard
@@ -30,78 +28,64 @@ class BasePlayer(object):
         assert all(cards)
         self.discard.add_cards(*cards)
 
-    def refill_hand(self):
-        assert not self.hand, 'Cannot refill an non-empty hand'
-        self.hand = CardCollection(*(self.draw_card() for i in xrange(5)))
+    def set_turn(self, turn):
+        self.turn = turn
 
-    def do_turn(self, turn):
-        self.log(logging.DEBUG, 'Player {0} Hand: T:{1}'.format(self.game.get_turn(), self.hand.get_treasure_value(),))
-        self.log(logging.DEBUG, 'Player {0} Victory Points: V:{1}'.format(self.game.get_turn(), self.victory_point_count(),))
-        self.do_actions(turn)
-        self.do_buys(turn)
-        self.do_cleanup(turn)
-        self.refill_hand()
-
-    def do_actions(self, turn):
+    def do_turn(self):
         pass
 
-    def do_buys(self, turn):
-        pass
-
-    def do_cleanup(self, turn):
-        # Cycle all of the cards left in our hand into the discard.
-        while self.hand:
-            self.discard_cards(self.hand.draw_card())
-        # Put all of the played cards in the discard.
-        while turn.cards:
-            self.discard_cards(turn.cards.draw_card())
+    def cleanup_turn(self):
+        self.discard_cards(*[c for c in self.turn.hand])
+        self.discard_cards(*[c for c in self.turn.discard])
 
 
 class SimpleBuyStrategy(BasePlayer):
-    def do_buys(self, turn):
-        treasures = CardCollection(*filter(lambda c: c.is_treasure, self.hand.cards))
-        self.hand = CardCollection(*filter(lambda c: not c.is_treasure, self.hand.cards))
+    def do_turn(self):
+        treasures = pop_treasures(self.turn.hand)
+        self.turn.spend_treasures(*treasures)
 
         to_buy = None
-        if treasures.get_treasure_value() >= 8:
+        if treasures.total_treasure_value() >= 8:
             to_buy = Province
-        elif treasures.get_treasure_value() >= 6:
+        elif treasures.total_treasure_value() >= 6:
             to_buy = Gold
-        elif treasures.get_treasure_value() >= 3:
+        elif treasures.total_treasure_value() >= 3:
             to_buy = Silver
         else:
             to_buy = Copper
 
         if to_buy is not None:
-            turn.spend_treasure(*treasures)
-            turn.buy_card(to_buy)
-        else:
-            self.hand.add_cards(*treasures)
+            self.turn.buy_card(to_buy)
+
+
+def do_nothing(choices, nothing_weight=1):
+    """
+    Helper functions for randomly picking to do nothing during a turn.
+    """
+    return randint(0, len(choices) + nothing_weight) > len(choices)
 
 
 class RandomActionStrategy(BasePlayer):
-    def do_actions(self, turn):
-        """
-        This is a horrible implementation of this.
-        """
-        actions = CardCollection(*filter(lambda c: c.is_action, self.hand.cards))
-        actions.shuffle()
-        self.hand = CardCollection(*filter(lambda c: not c.is_action, self.hand.cards))
+    def do_turn(self):
+        self.do_actions()
+        self.do_buys()
 
-        while turn.actions and actions:
-            if randint(0, len(actions) + 1) > len(actions):
+    def do_actions(self):
+        actions = pop_actions(self.turn.hand)
+
+        while self.turn.available_actions and actions:
+            if do_nothing(actions):
                 break
-            turn.play_action(actions.draw_card())
-        self.hand.add_cards(*actions)
+            self.turn.play_action(actions.draw_card())
+        self.turn.discard_cards(*actions)
 
-    def do_buys(self, turn):
-        treasures = CardCollection(*filter(lambda c: c.is_treasure, self.hand.cards))
-        turn.spend_treasure(*treasures)
-        self.hand = CardCollection(*filter(lambda c: not c.is_treasure, self.hand.cards))
+    def do_buys(self):
+        treasures = pop_treasures(self.turn.hand)
+        self.turn.spend_treasures(*treasures)
 
-        while turn.buys:
-            affordable_cards = filter(lambda c: c.cost <= turn.treasure and self.game.supply.cards[c], self.game.supply.cards)
+        while self.turn.available_buys:
+            affordable_cards = self.game.supply.affordable_cards(self.turn.available_treasure)
             shuffle(affordable_cards)
-            if not affordable_cards or randint(0, len(affordable_cards) + 1) > len(affordable_cards):
+            if not affordable_cards or do_nothing(affordable_cards):
                 break
-            turn.buy_card(affordable_cards.pop())
+            self.turn.buy_card(affordable_cards.pop())

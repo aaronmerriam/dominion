@@ -3,12 +3,12 @@ import logging
 import datetime
 
 from .cards import Market, Copper, Silver, Gold, Estate, Duchy, Province, CardCollection
-from .exceptions import WinCondition, ProvincesDepleted, ActionsDepleted
+from .exceptions import WinCondition
 
 
-def get_initial_hand():
+def build_initial_hand():
     cards = [Copper() for i in xrange(7)] + [Estate() for i in xrange(3)]
-    return CardCollection(*cards)
+    return CardCollection(cards)
 
 
 def get_logger(name='dominion', filename=None, level=logging.DEBUG):
@@ -62,12 +62,26 @@ class Game(object):
         self.supply = Supply()
         self.players = []
         self.round = 0
-        for PlayerClass in self.player_classes:
-            self.players.append(PlayerClass(
-                game=self,
-                deck=get_initial_hand()),
-            )
+        for i, PlayerClass in enumerate(self.player_classes):
+            player = PlayerClass(game=self, deck=build_initial_hand())
+            player.set_turn(self.build_turn(player, 0, i))
+            self.players.append(player)
         self.log(logging.DEBUG, 'Finished Game Initialization')
+
+    def build_turn(self, player, round=None, turn=None):
+        """
+        Helper for constructing a Turn object for a player.
+        """
+        if turn is None:
+            turn = self.turn
+        if round is None:
+            round = self.round
+        return Turn(
+            game=self,
+            hand_cards=[player.draw_card() for j in xrange(5)],
+            turn=turn,
+            round=round,
+        )
 
     def process_game(self):
         try:
@@ -102,21 +116,30 @@ class Game(object):
 
     def process_turn(self, player):
         self.log(logging.INFO, 'Beginning Player {0} Turn'.format(self.get_turn()))
-        turn = Turn(self)
-        player.do_turn(turn)
-        assert not turn.cards, 'Player left cards in play'
+        player.do_turn()
+        player.cleanup_turn()
+        player.set_turn(self.build_turn(player, self.round + 1, self.turn + 1))
         self.supply.check_win_conditions()
         self.log(logging.INFO, 'Finished Player {0} Turn'.format(self.get_turn()))
 
 
 class Turn(object):
-    actions = 1
-    buys = 1
-    treasure = 0
+    available_actions = 1
+    available_buys = 1
+    available_treasure = 0
 
-    def __init__(self, game):
+    def __init__(self, game, hand_cards, turn, round):
         self.game = game
-        self.cards = CardCollection()
+        self.hand = CardCollection(hand_cards)
+        self.turn = turn
+        self.round = round
+        self.discard = CardCollection()
+
+    def log(self, level, message):
+        self.game.log(level, message)
+
+    def discard_cards(self, *cards):
+        self.discard.add_cards(*cards)
 
     def get_event_kwargs(self):
         return {
@@ -126,31 +149,31 @@ class Turn(object):
         }
 
     def play_action(self, card):
-        assert self.actions, 'No more actions left'
+        assert self.available_actions, 'No more actions left'
         assert card.is_action, 'Non-action card played as action'
-        self.actions -= 1
-        self.game.log(logging.INFO, 'Player {0}: ACTION "{1}"'.format(self.game.get_turn(), card))
-        for event in card.events:
-            event(**self.get_event_kwargs())
-        self.cards.add_cards(card)
+        self.available_actions -= 1
+        self.log(logging.INFO, 'Player {0}: ACTION "{1}"'.format(self.turn, card))
+        card.execute_events(**self.get_event_kwargs())
+        self.discard_cards(card)
 
-    def spend_treasure(self, *cards):
-        assert all(card.is_treasure for card in cards)
-        for card in cards:
-            self.game.log(logging.INFO, 'Player {0}: SPENT "{1}"'.format(self.game.get_turn(), card))
-        self.treasure += sum(card.treasure_value for card in cards)
-        self.cards.add_cards(*cards)
+    def spend_treasures(self, *treasures):
+        assert all(treasure.is_treasure for treasure in treasures), 'Attempting to spend non treasure cards'
+        treasures = CardCollection(treasures)
+        for treasure in treasures:
+            self.game.log(logging.INFO, 'Player {0}: SPEND "{1}"'.format(self.game.get_turn(), treasure))
+        self.available_treasure += treasures.total_treasure_value()
+        self.discard_cards(*treasures)
 
     def buy_card(self, card):
-        assert self.buys, 'No more buys left'
+        assert self.available_buys, 'No more buys left'
         assert card in self.game.supply.cards, 'This card is not available from the supply.'
         assert self.game.supply.cards[card], 'The supply is out of this card.'
-        assert card.cost <= self.treasure, 'You cannot afford that card'
+        assert card.cost <= self.available_treasure, 'You cannot afford that card'
         card = self.game.supply.cards[card].draw_card()
-        self.treasure -= card.cost
-        self.buys -= 1
+        self.available_treasure -= card.cost
+        self.available_buys -= 1
         self.game.log(logging.INFO, 'Player {0}: BUY "{1}"'.format(self.game.get_turn(), card))
-        self.cards.add_cards(card)
+        self.discard_cards(card)
 
 
 class Supply(object):
@@ -166,23 +189,24 @@ class Supply(object):
         (Market, 12),
     ))
 
-    def __init__(self, action_card_classes=[]):
+    def __init__(self):
         self.cards = {}
         for Card, pile_size in self.BASE_CARDS.iteritems():
-            self.cards[Card] = CardCollection(*(Card() for i in xrange(pile_size)))
+            self.cards[Card] = CardCollection((Card() for i in xrange(pile_size)))
         for Card, pile_size in self.ACTION_CARDS.iteritems():
-            self.cards[Card] = CardCollection(*(Card() for i in xrange(pile_size)))
+            self.cards[Card] = CardCollection((Card() for i in xrange(pile_size)))
 
-    @property
-    def provinces(self):
+    def province_cards(self):
         return self.cards[Province]
 
-    @property
-    def actions(self):
+    def action_cards(self):
         return [self.cards[key] for key in filter(lambda k: not k in self.BASE_CARDS, self.cards)]
 
+    def affordable_cards(self, value):
+        return filter(lambda c: c.cost <= value and self.cards[c], self.cards)
+
     def check_win_conditions(self):
-        if sum(len(pile) < 3 for pile in self.actions) > 2:
-            raise ActionsDepleted
-        elif not len(self.provinces):
-            raise ProvincesDepleted
+        if sum(len(pile) < 3 for pile in self.action_cards()) > 2:
+            raise WinCondition('Actions depleted')
+        elif not len(self.province_cards()):
+            raise WinCondition('Provinces depleted')
