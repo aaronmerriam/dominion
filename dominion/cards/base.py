@@ -58,7 +58,7 @@ class CardCollection(object):
         return len(self.cards)
 
     def __add__(self, other):
-        return CardCollection(*chain(self.cards, other.cards))
+        return CardCollection(chain(self.cards, other.cards))
 
     def __getitem__(self, index):
         return self.cards[index]

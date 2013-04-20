@@ -11,8 +11,8 @@ class BasePlayer(object):
         self.discard = CardCollection()
 
     def victory_point_count(self):
-        full_deck = self.hand + self.deck + self.discard
-        return sum(card.get_victory_points(full_deck) for card in full_deck)
+        full_deck = self.turn.hand + self.deck + self.discard
+        return sum(card.total_victory_point_value(full_deck) for card in full_deck)
 
     def log(self, level, message):
         self.game.log(level, message)
