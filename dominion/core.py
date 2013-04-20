@@ -29,7 +29,7 @@ class Game(object):
     turn = None
     winner = None
     log_level = DEFAULT_LOG_LEVEL
-    MAX_ROUNDS = 90
+    MAX_ROUNDS = 200
 
     def __init__(self, player_classes):
         assert len(player_classes) > 1, 'Cannot initiate a game with less than 2 players'
