@@ -1,7 +1,7 @@
 import unittest
 
 from dominion.core import Game
-from dominion.bots import BasePlayer
+from dominion.bots.base import BaseBot
 from dominion.cards import (  # NOQA
     CardCollection, Treasure, pop_treasures, Copper,
     Silver, Gold, Estate, Duchy, Province, pop_matching_cards,
@@ -10,7 +10,7 @@ from dominion.cards import (  # NOQA
 
 class TestGame(unittest.TestCase):
     def setUp(self):
-        self.game = Game((BasePlayer, BasePlayer))
+        self.game = Game((BaseBot, BaseBot))
         self.game.initialize_game()
 
     def test_manual_round_progress(self):
