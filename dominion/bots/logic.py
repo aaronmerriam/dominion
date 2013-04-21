@@ -6,6 +6,8 @@ from .base import BaseBot, do_nothing
 
 
 class Condition(object):
+    actions = []
+
     def __init__(self, turn, player, **kwargs):
         self.turn = turn
         self.game = turn.game
@@ -13,6 +15,9 @@ class Condition(object):
 
     def __nonzero__(self):
         return self.eval(self.get_eval_kwargs())
+
+    def __call__(self):
+        return self.execute()
 
     def get_eval_kwargs(self, **kwargs):
         defaults = {
@@ -26,6 +31,9 @@ class Condition(object):
     def eval(self, **kwargs):
         raise NotImplementedError('Must implement this in subclasses')
 
+    def execute(self):
+        pass
+
 
 class CardInHandCondition(Condition):
     def __init__(self, card, **kwargs):
@@ -35,7 +43,7 @@ class CardInHandCondition(Condition):
         return self.card in turn.hand
 
 
-def buy_card(card, turn):
+def buy_card(card, turn, **kwargs):
     # check card is in supply.
     # check can afford card.
     # spend treasures.
@@ -43,7 +51,7 @@ def buy_card(card, turn):
     pass
 
 
-def play_action(card, turn):
+def play_action(card, turn, **kwargs):
     # 
     pass
 
