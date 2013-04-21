@@ -38,6 +38,10 @@ class BasePlayer(object):
         self.discard_cards(*[c for c in self.turn.hand])
         self.discard_cards(*[c for c in self.turn.discard])
 
+    def self_discard(self, cards, num_discard, is_attack=True):
+        for i in xrange(num_discard):
+            cards.draw_card()
+
 
 class SimpleBuyStrategy(BasePlayer):
     def do_turn(self):

@@ -51,6 +51,9 @@ class Game(object):
     def get_current_player(self):
         return self.players[self.get_turn()]
 
+    def get_other_players(self):
+        return filter(lambda p: not p == self.get_current_player(), self.players)
+
     def trash_card(self, card):
         assert self.get_current_player(), 'No current player set'
         self.log(logging.INFO, 'Player {0}: TRASH "{1}"'.format(self.get_turn(), card))
@@ -141,19 +144,22 @@ class Turn(object):
     def discard_cards(self, *cards):
         self.discard.add_cards(*cards)
 
-    def get_event_kwargs(self):
-        return {
+    def get_event_kwargs(self, **kwargs):
+        defaults = {
             'turn': self,
             'player': self.game.get_current_player(),
+            'other_players': self.game.get_other_players(),
             'game': self.game,
         }
+        defaults.update(kwargs)
+        return defaults
 
     def play_action(self, card):
         assert self.available_actions, 'No more actions left'
         assert card.is_action, 'Non-action card played as action'
         self.available_actions -= 1
         self.log(logging.INFO, 'Player {0}: ACTION "{1}"'.format(self.turn, card))
-        card.execute_events(**self.get_event_kwargs())
+        card.execute_events(**self.get_event_kwargs(card=card))
         self.discard_cards(card)
 
     def spend_treasures(self, *treasures):

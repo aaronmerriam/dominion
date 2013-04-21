@@ -1,10 +1,11 @@
-from .base import Treasure, Action, Victory
+from .base import Treasure, Action, Victory, Attack
 
 from .events import (  # NOQA
     extra_1_buys, extra_2_buys, extra_3_buys,
     extra_1_actions, extra_2_actions, extra_3_actions,
     extra_1_treasures, extra_2_treasures, extra_3_treasures,
     extra_1_cards, extra_2_cards, extra_3_cards,
+    force_others_discard_hand_to_3, draw_4_discard_1
 )
 
 
@@ -45,4 +46,19 @@ class Market(Action):
         extra_1_actions,
         extra_1_buys,
         extra_1_treasures,
+    )
+
+
+class Militia(Action, Attack):
+    cost = 4
+    events = (
+        force_others_discard_hand_to_3,
+        extra_2_treasures,
+    )
+
+
+class Envoy(Action):
+    cost = 4
+    events = (
+        draw_4_discard_1,
     )

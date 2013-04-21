@@ -33,6 +33,10 @@ class Action(BaseCard):
     is_action = True
 
 
+class Attack(BaseCard):
+    is_action = True
+
+
 class Treasure(BaseCard):
     is_treasure = True
 
