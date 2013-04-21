@@ -28,3 +28,6 @@ class TestGame(unittest.TestCase):
         for i in range(len(self.game.players)):
             self.game.turn = i
             self.assertNotIn(self.game.players[i], self.game.get_other_players())
+
+    def test_get_player_count(self):
+        self.assertEqual(len(self.game.players), self.game.get_player_count())

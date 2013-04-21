@@ -46,3 +46,5 @@ force_others_discard_hand_to_3 = partial(force_others_discard_hand_to, 3)
 def draw_x_discard_y(x, y, turn, player, **kwargs):
     # TODO
     pass
+
+draw_4_discard_1 = partial(draw_x_discard_y, 4, 1)
