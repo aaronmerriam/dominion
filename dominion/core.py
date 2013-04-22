@@ -192,7 +192,6 @@ class Supply(object):
             self.cards[Card] = CardCollection((Card() for i in xrange(pile_size)))
         for Card in self.action_cards:
             self.cards[Card] = CardCollection((Card() for i in xrange(12)))
-        print [len(self.cards[c]) for c in self.cards]
 
     def province_cards(self):
         return self.cards[Province]
