@@ -3,7 +3,10 @@ import logging
 import datetime
 from random import sample
 
-from .cards import BASE_SUPPLY_CARDS, CORE_ACTION_CARDS, CardCollection, Copper, Estate, Province
+from .cards import (
+    BASE_SUPPLY_CARDS, CORE_ACTION_CARDS, CardCollection, Copper, Estate,
+    Province, BaseCard
+)
 from .exceptions import WinCondition
 
 
@@ -192,6 +195,14 @@ class Supply(object):
             self.cards[Card] = CardCollection((Card() for i in xrange(pile_size)))
         for Card in self.action_cards:
             self.cards[Card] = CardCollection((Card() for i in xrange(12)))
+
+    def __contains__(self, card):
+        if isinstance(card, BaseCard):
+            return card.__class__ in self.cards
+        elif issubclass(card, BaseCard):
+            return card in self.cards
+        else:
+            raise TypeError('Unkown object passed in as card')
 
     def province_cards(self):
         return self.cards[Province]

@@ -68,7 +68,12 @@ class CardCollection(object):
         return bool(self.cards)
 
     def __contains__(self, card):
-        return card in self.cards
+        if isinstance(card, BaseCard):
+            return card in self.cards
+        elif issubclass(card, BaseCard):
+            return any(isinstance(c, card) for c in self.cards)
+        else:
+            raise TypeError('Unkown object passed in as card')
 
     def __iter__(self):
         return iter(self.cards)

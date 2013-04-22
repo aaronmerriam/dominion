@@ -1,59 +1,81 @@
-from random import shuffle
+import operator
+from functools import partial
 
-from .cards import pop_treasures, pop_actions
+from .cards import Province, Gold, Silver, pop_treasures
+from .base import BaseBot
 
-from .base import BaseBot, do_nothing
+"""
+Commands
+- set of evaluatable conditions
+- single action
+- return value:
+    - True - 
+"""
 
+def command(conditions, action, **kwargs):
+    if all(condition(**kwargs) for condition in conditions):
+        return action(**kwargs)
+    return False
 
-class Condition(object):
-    actions = []
-
-    def __init__(self, turn, player, **kwargs):
-        self.turn = turn
-        self.game = turn.game
-        self.player = player
-
-    def __nonzero__(self):
-        return self.eval(self.get_eval_kwargs())
-
-    def __call__(self):
-        return self.execute()
-
-    def get_eval_kwargs(self, **kwargs):
-        defaults = {
-            'turn': self.turn,
-            'game': self.game,
-            'player': self.player,
-        }
-        defaults.update(kwargs)
-        return defaults
-
-    def eval(self, **kwargs):
-        raise NotImplementedError('Must implement this in subclasses')
-
-    def execute(self):
+def repeat_command_up_to_n(n, command, **kwargs):
+    while command(**kwargs):
         pass
+    return True
 
 
-class CardInHandCondition(Condition):
-    def __init__(self, card, **kwargs):
-        self.card = card
+def operator_condition(operation, conditions, **kwargs):
+    return reduce(
+        operation,
+        map(operator.truth, (condition(**kwargs) for condition in conditions)),
+    )
 
-    def eval(self, turn):
-        return self.card in turn.hand
-
-
-def buy_card(card, turn, **kwargs):
-    # check card is in supply.
-    # check can afford card.
-    # spend treasures.
-    # buy card.
-    pass
+and_conditions = partial(operator_condition, operator.and_)
+or_conditions = partial(operator_condition, operator.or_)
 
 
-def play_action(card, turn, **kwargs):
-    # 
-    pass
+def card_in_hand(card, turn, **kwargs):
+    return card in turn.hand
+
+
+def card_in_deck(card, turn, player, **kwargs):
+    return any(
+        card in turn.hand,
+        card in turn.discard,
+        card in player.deck,
+        card in player.discard,
+    )
+
+
+def can_afford_card(card, turn, **kwargs):
+    return card.cost <= turn.available_treasure + turn.hand.total_treasure_value()
+
+
+can_afford_province = partial(can_afford_card, Province)
+can_afford_gold = partial(can_afford_card, Gold)
+can_afford_silver = partial(can_afford_card, Silver)
+
+
+def card_is_purchasable(card, game, **kwargs):
+    return card in game.supply and game.supply.cards[card]
+
+province_is_purchasable = partial(card_is_purchasable, Province)
+gold_is_purchasable = partial(card_is_purchasable, Gold)
+silver_is_purchasable = partial(card_is_purchasable, Silver)
+
+
+can_purchase_province = partial(and_conditions, [can_afford_province, province_is_purchasable])
+can_purchase_gold = partial(and_conditions, [can_afford_gold, gold_is_purchasable])
+can_purchase_silver = partial(and_conditions, [can_afford_silver, silver_is_purchasable])
+
+
+def purchase_card(card, turn, **kwargs):
+    treasures = pop_treasures(turn.hand)
+    turn.spend_treasures(*treasures)
+    turn.buy_card(card)
+
+buy_province = partial(purchase_card, Province)
+buy_gold = partial(purchase_card, Gold)
+buy_silver = partial(purchase_card, Silver)
 
 
 class LogicBot(BaseBot):
@@ -62,21 +84,15 @@ class LogicBot(BaseBot):
         self.do_buys()
 
     def do_actions(self):
-        actions = pop_actions(self.turn.hand)
-
-        while self.turn.available_actions and actions:
-            if do_nothing(actions):
+        for command in self.action_commands:
+            if command.execute(self.turn):
+                continue
+            else:
                 break
-            self.turn.play_action(actions.draw_card())
-        self.turn.discard_cards(*actions)
 
     def do_buys(self):
-        treasures = pop_treasures(self.turn.hand)
-        self.turn.spend_treasures(*treasures)
-
-        while self.turn.available_buys:
-            affordable_cards = self.game.supply.affordable_cards(self.turn.available_treasure)
-            shuffle(affordable_cards)
-            if not affordable_cards or do_nothing(affordable_cards):
+        for command in self.buy_commands:
+            if command.execute(self.turn):
+                continue
+            else:
                 break
-            self.turn.buy_card(affordable_cards.pop())
