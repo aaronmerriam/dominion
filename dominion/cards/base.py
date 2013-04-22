@@ -6,11 +6,15 @@ from itertools import chain
 class BaseCard(object):
     is_attack = False
     is_action = False
+    is_reaction = False
     is_treasure = False
     is_victory = False
     treasure_value = 0
     victory_points = 0
     events = []
+
+    def __hash__(self):
+        return hash(self.short_name)
 
     def __cmp__(self, other):
         if self.__class__ == other.__class__:
@@ -21,12 +25,18 @@ class BaseCard(object):
     def __unicode__(self):
         return self.__class__.__name__
 
+    def __repr__(self):
+        return unicode(self)
+
     def total_victory_point_value(self, deck):
         return self.victory_points
 
     def execute_events(self, **kwargs):
         for event in self.events:
-            event(**kwargs)
+            if isinstance(event, basestring):
+                getattr(self, event)(**kwargs)
+            else:
+                event(**kwargs)
 
 
 class Action(BaseCard):
@@ -35,6 +45,10 @@ class Action(BaseCard):
 
 class Attack(BaseCard):
     is_action = True
+
+
+class Reaction(BaseCard):
+    is_reaction = True
 
 
 class Treasure(BaseCard):
@@ -48,6 +62,7 @@ class Victory(BaseCard):
 class CardCollection(object):
     def __init__(self, cards=[]):
         self.cards = list(cards)
+        self.validate_cards(*self.cards)
 
     def __nonzero__(self):
         return bool(self.cards)
@@ -79,7 +94,11 @@ class CardCollection(object):
         except IndexError:
             raise IndexError('Cannot deal from an empty deck')
 
+    def validate_cards(self, *cards):
+        assert all(isinstance(card, BaseCard) for card in cards), 'Attempt to add a non card instance to collection'
+
     def add_cards(self, *cards):
+        self.validate_cards(*cards)
         self.cards.extend(cards)
 
     def shuffle(self):
@@ -103,3 +122,4 @@ def pop_matching_cards(key, cards):
 
 pop_treasures = partial(pop_matching_cards, lambda c: c.is_treasure)
 pop_actions = partial(pop_matching_cards, lambda c: c.is_action)
+pop_points = partial(pop_matching_cards, lambda c: c.is_victory)

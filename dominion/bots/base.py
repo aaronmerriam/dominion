@@ -38,9 +38,26 @@ class BaseBot(object):
         self.discard_cards(*[c for c in self.turn.hand])
         self.discard_cards(*[c for c in self.turn.discard])
 
-    def self_discard(self, cards, num_discard, is_attack=True):
-        for i in xrange(num_discard):
-            cards.draw_card()
+    def select_for_discard(self, cards, num_cards, is_attack, is_own_cards):
+        selected = CardCollection()
+        for i in xrange(num_cards):
+            selected.add_cards(cards.draw_card())
+        return selected
+
+    def select_to_add_to_deck(self, cards, num_cards):
+        """
+        cards in this method is a list of card classes, not a collection of cards.
+        """
+        selected = []
+        for i in xrange(num_cards):
+            selected.append(cards.pop())
+        return selected
+
+    def select_to_return_to_deck(self, cards, num_cards, is_attack, is_own_cards):
+        selected = CardCollection()
+        for i in xrange(num_cards):
+            selected.add_cards(cards.draw_card())
+        return selected
 
 
 def do_nothing(choices, nothing_weight=1):

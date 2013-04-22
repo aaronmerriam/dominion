@@ -35,19 +35,35 @@ extra_2_cards = partial(extra_cards, 2)
 extra_3_cards = partial(extra_cards, 3)
 
 
-def discard_to(discard_to, turn, others, card=BaseCard(), **kwargs):
-    # TODO: automatic detection of discarding own, or other persons cards.
-    for player in others:
+def discard_to(discard_to, turn, other_players, card=BaseCard(), **kwargs):
+    for player in other_players:
+        discard_kwargs = {
+            'is_attack': card.is_attack,
+            'is_own_cards': player.turn == turn,
+        }
         num_discard = max(0, len(player.turn.hand) - discard_to)
-        player.self_discard(player.turn.hand, num_discard, is_attack=card.is_attack)
+        player.select_for_discard(player.turn.hand, num_discard, **discard_kwargs)
 
-discard_to_3 = partial(discard_to, 3)
+others_discard_to_3 = partial(discard_to, 3)
 
 
-def draw_x_discard_y(x, y, turn, player, **kwargs):
-    # TODO: automatic detection of discarding own, or other persons cards.
+def draw_x_discard_y(x, y, turn, player, card, **kwargs):
+    discard_kwargs = {
+        'is_attack': card.is_attack,
+        'is_own_cards': player.turn == turn,
+    }
     cards = CardCollection([player.draw_card() for i in xrange(x)])
-    player.self_discard(cards, y)
-    turn.hand.add_cards(cards)
+    player.select_for_discard(cards, y, **discard_kwargs)
+    turn.hand.add_cards(*cards)
 
 draw_4_discard_1 = partial(draw_x_discard_y, 4, 1)
+
+
+def free_buy_up_to_x(x, turn, player, **kwargs):
+    affordable_cards = turn.game.supply.affordable_cards(x)
+    # `card` is a card class
+    cards = player.select_to_add_to_deck(affordable_cards, x)
+    for card in cards:
+        turn.discard_cards(turn.game.supply.draw_card(card))
+
+free_buy_up_to_4 = partial(free_buy_up_to_x, 4)

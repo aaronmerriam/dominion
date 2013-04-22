@@ -1,8 +1,9 @@
 import sys
 import logging
 import datetime
+from random import sample
 
-from .cards import Market, Copper, Silver, Gold, Estate, Duchy, Province, CardCollection
+from .cards import BASE_SUPPLY_CARDS, CORE_ACTION_CARDS, CardCollection, Copper, Estate, Province
 from .exceptions import WinCondition
 
 
@@ -62,7 +63,7 @@ class Game(object):
     def initialize_game(self):
         self.log(logging.DEBUG, 'Begin Game Initialization')
         self.trash = CardCollection()
-        self.supply = Supply()
+        self.supply = Supply(BASE_SUPPLY_CARDS, sample(CORE_ACTION_CARDS, 10))
         self.players = []
         self.round = 0
         for i, PlayerClass in enumerate(self.player_classes):
@@ -89,8 +90,8 @@ class Game(object):
     def process_game(self):
         try:
             self.process_rounds_forever()
-        except WinCondition:
-            self.log(logging.INFO, 'Win Conditions Satisfied')
+        except WinCondition as e:
+            self.log(logging.INFO, 'Win Conditions Satisfied: {0}'.format(e.message))
             self.process_win()
         self.process_no_win()
 
@@ -183,36 +184,27 @@ class Turn(object):
 
 
 class Supply(object):
-    BASE_CARDS = dict((
-        (Copper, 60),
-        (Silver, 45),
-        (Gold, 25),
-        (Estate, 50),
-        (Duchy, 25),
-        (Province, 12),
-    ))
-    ACTION_CARDS = dict((
-        (Market, 12),
-    ))
-
-    def __init__(self):
+    def __init__(self, base_cards, action_cards):
+        self.base_cards = base_cards
+        self.action_cards = action_cards
         self.cards = {}
-        for Card, pile_size in self.BASE_CARDS.iteritems():
+        for Card, pile_size in self.base_cards.iteritems():
             self.cards[Card] = CardCollection((Card() for i in xrange(pile_size)))
-        for Card, pile_size in self.ACTION_CARDS.iteritems():
-            self.cards[Card] = CardCollection((Card() for i in xrange(pile_size)))
+        for Card in self.action_cards:
+            self.cards[Card] = CardCollection((Card() for i in xrange(12)))
+        print [len(self.cards[c]) for c in self.cards]
 
     def province_cards(self):
         return self.cards[Province]
-
-    def action_cards(self):
-        return [self.cards[key] for key in filter(lambda k: not k in self.BASE_CARDS, self.cards)]
 
     def affordable_cards(self, value):
         return filter(lambda c: c.cost <= value and self.cards[c], self.cards)
 
     def check_win_conditions(self):
-        if sum(len(pile) < 3 for pile in self.action_cards()) > 2:
-            raise WinCondition('Actions depleted')
+        if sum(not bool(self.cards[Card]) and not Card == Province for Card in self.cards) > 2:
+            raise WinCondition('Three actions depleted')
         elif not len(self.province_cards()):
             raise WinCondition('Provinces depleted')
+
+    def draw_card(self, card):
+        return self.cards[card].draw_card()

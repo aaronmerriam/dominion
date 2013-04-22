@@ -1,8 +1,9 @@
 import unittest
 
-from dominion.cards import (
+from dominion.cards import (  # NOQA
     CardCollection, Treasure, pop_treasures, Copper,
     Silver, Gold, Estate, Duchy, Province, pop_matching_cards,
+    Gardens,
 )
 
 
@@ -48,3 +49,20 @@ class TestCardCollection(unittest.TestCase):
         self.assertTrue(all([c == Duchy() for c in duchies]))
         self.assertEqual(len(self.cards), 7)
         self.assertFalse(any([c == Duchy() for c in self.cards]))
+
+
+class TestGarden(unittest.TestCase):
+    def test_victory_point_value(self):
+        deck = CardCollection([Gardens()] + [Copper() for i in xrange(8)])  # 9 cards
+        self.assertEqual(deck[0].total_victory_point_value(deck), 0)
+
+        deck = CardCollection([Gardens()] + [Copper() for i in xrange(9)])  # 10 cards
+        self.assertEqual(deck[0].total_victory_point_value(deck), 1)
+        deck = CardCollection([Gardens()] + [Copper() for i in xrange(10)])  # 11 cards
+        self.assertEqual(deck[0].total_victory_point_value(deck), 1)
+
+        deck = CardCollection([Gardens()] + [Copper() for i in xrange(18)])  # 19 cards
+        self.assertEqual(deck[0].total_victory_point_value(deck), 1)
+
+        deck = CardCollection([Gardens()] + [Copper() for i in xrange(34)])  # 35 cards
+        self.assertEqual(deck[0].total_victory_point_value(deck), 3)

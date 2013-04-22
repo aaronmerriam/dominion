@@ -5,5 +5,17 @@ from .base import (  # NOQA
 
 from .core import (  # NOQA
     Copper, Silver, Gold, Estate, Duchy, Province,
-    Market,
+    Market, Militia, Village, Envoy, Moat, Woodcutter, Workshop,
+    Bureaucrat, Gardens, Smithy, Festival, Laboratory,
+)
+
+
+TREASURE_CARDS = (Copper, Silver, Gold)
+VICTORY_CARDS = (Estate, Duchy, Province)
+BASE_SUPPLY_CARDS = dict(
+    zip(TREASURE_CARDS, (60, 40, 25)) + zip(VICTORY_CARDS, (30, 18, 12))
+)
+CORE_ACTION_CARDS = (
+    Market, Village, Militia, Envoy, Moat, Woodcutter, Workshop,
+    Bureaucrat, Gardens, Smithy, Festival, Laboratory,
 )
