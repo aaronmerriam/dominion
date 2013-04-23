@@ -40,6 +40,24 @@ def has_action(turn, **kwargs):
     return turn.available_actions
 
 
+def play_card(card, turn, **kwargs):
+    for i in xrange(len(turn.hand)):
+        if isinstance(turn.hand[i], card):
+            turn.play_action(turn.hand.pop_card(i))
+            break
+
+
+def play_card_command(card):
+    return partial(
+        command,
+        partial(and_conditions, (
+            partial(card_in_hand, card),
+            has_action,
+        )),
+        partial(play_card, card),
+    )
+
+
 def card_in_deck(card, turn, player, **kwargs):
     return any((
         card in turn.hand,
@@ -50,7 +68,6 @@ def card_in_deck(card, turn, player, **kwargs):
 
 
 def can_afford_card(card, turn, **kwargs):
-    print card.cost, turn.hand.total_treasure_value()
     return card.cost <= turn.available_treasure + turn.hand.total_treasure_value()
 
 
@@ -129,6 +146,9 @@ class MoneyLogicBot(BaseLogicBot):
 
 
 class SmithyLogicBot(BaseLogicBot):
+    action_commands = (
+        play_card_command(Smithy),
+    )
     buy_commands = (
         buy_1_smithy,
         buy_card_command(Province),
