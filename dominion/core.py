@@ -5,7 +5,7 @@ from random import sample
 
 from .cards import (
     BASE_SUPPLY_CARDS, CORE_ACTION_CARDS, CardCollection, Copper, Estate,
-    Province, BaseCard
+    Province, BaseCard, pop_treasures
 )
 from .exceptions import WinCondition
 
@@ -27,23 +27,21 @@ def get_logger(name='dominion', filename=None, level=logging.DEBUG):
     logger.setLevel(level)
     return logger
 
-DEFAULT_LOG_LEVEL = logging.DEBUG
-
 
 class Game(object):
     round = None
     turn = None
     winner = None
-    log_level = DEFAULT_LOG_LEVEL
     MAX_ROUNDS = 100
 
-    def __init__(self, player_classes):
+    def __init__(self, player_classes, logger=None):
         assert len(player_classes) > 1, 'Cannot initiate a game with less than 2 players'
         self.player_classes = player_classes
-        self.logger = get_logger(level=self.log_level)
+        self.logger = logger
 
-    def log(self, level=DEFAULT_LOG_LEVEL, message=''):
-        self.logger.log(level, message)
+    def log(self, level, message):
+        if self.logger:
+            self.logger.log(level, message)
 
     def get_round(self):
         return self.round
@@ -87,7 +85,7 @@ class Game(object):
             round = self.round
         return Turn(
             game=self,
-            hand_cards=[player.draw_card() for j in xrange(5)],
+            hand_cards=player.draw_cards(5),
             turn=turn,
             round=round,
         )
@@ -102,8 +100,15 @@ class Game(object):
 
     def process_win(self):
         scores = dict([(i, p.victory_point_count()) for i, p in enumerate(self.players)])
-        winner = max(scores, scores.get)
-        self.log(logging.INFO, 'Player {0} Won'.format(winner))
+        winner = max(scores, key=scores.get)
+        for index, score in scores.iteritems():
+            if index == winner:
+                continue
+            if score == scores[winner]:
+                self.log(logging.INFO, 'Tie')
+                return
+        self.winner = self.players[winner]
+        self.log(logging.INFO, 'Player {0} ({1}) Won'.format(winner, type(self.players[winner])))
 
     def process_no_win(self):
         pass
@@ -136,6 +141,7 @@ class Turn(object):
     available_actions = 1
     available_buys = 1
     available_treasure = 0
+    has_made_buy = False
 
     def __init__(self, game, hand_cards, turn, round):
         self.game = game
@@ -160,17 +166,18 @@ class Turn(object):
         defaults.update(kwargs)
         return defaults
 
-    def play_action(self, card):
+    def play_action(self, index):
+        assert not self.has_made_buy, 'Already entered the buy phase'
         assert self.available_actions, 'No more actions left'
+        card = self.hand.pop_card(index)
         assert card.is_action, 'Non-action card played as action'
         self.available_actions -= 1
         self.log(logging.INFO, 'Player {0}: ACTION "{1}"'.format(self.turn, card))
         card.execute_events(**self.get_event_kwargs(card=card))
         self.discard_cards(card)
 
-    def spend_treasures(self, *treasures):
-        assert all(treasure.is_treasure for treasure in treasures), 'Attempting to spend non treasure cards'
-        treasures = CardCollection(treasures)
+    def spend_all_treasures(self):
+        treasures = pop_treasures(self.hand)
         for treasure in treasures:
             self.game.log(logging.INFO, 'Player {0}: SPEND "{1}"'.format(self.game.get_turn(), treasure))
         self.available_treasure += treasures.total_treasure_value()
@@ -184,6 +191,7 @@ class Turn(object):
         card = self.game.supply.cards[card].draw_card()
         self.available_treasure -= card.cost
         self.available_buys -= 1
+        self.has_made_buy = True
         self.game.log(logging.INFO, 'Player {0}: BUY "{1}"'.format(self.game.get_turn(), card))
         self.discard_cards(card)
 

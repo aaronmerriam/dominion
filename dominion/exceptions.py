@@ -8,3 +8,7 @@ class ProvincesDepleted(WinCondition):
 
 class ActionsDepleted(WinCondition):
     pass
+
+
+class EmptyDeck(Exception):
+    pass

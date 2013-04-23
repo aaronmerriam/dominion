@@ -17,12 +17,23 @@ class BaseBot(object):
     def log(self, level, message):
         self.game.log(level, message)
 
-    def draw_card(self):
+    def draw_cards(self, count=1):
+        """
+        This is the `safe` way to draw up to `count` cards.  If the deck is
+        truly out of cards and there are no discards to reshuffle, this will
+        just return less cards than asked for.
+        """
         if not self.deck:
             self.log(logging.DEBUG, 'Player {0} Reshuffling'.format(self.game.get_turn()))
             self.discard.shuffle()
             self.deck, self.discard = self.discard, self.deck
-        return self.deck.draw_card()
+        cards = []
+        for i in xrange(count):
+            try:
+                cards.append(self.deck.draw_card())
+            except IndexError:
+                break
+        return cards
 
     def discard_cards(self, *cards):
         assert all(cards)

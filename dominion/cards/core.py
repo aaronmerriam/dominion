@@ -104,8 +104,9 @@ class Bureaucrat(Action, Attack):
     )
 
     def gain_silver_on_deck(self, turn, player, **kwargs):
-        silver = turn.game.supply.cards[Silver].draw_card()
-        player.deck.add_cards(silver)
+        if turn.game.supply.cards[Silver]:
+            silver = turn.game.supply.cards[Silver].draw_card()
+            player.deck.add_cards(silver)
 
     def force_victory_to_deck(self, other_players, **kwargs):
         for player in other_players:

@@ -1,21 +1,20 @@
-from dominion.cards import Province, Copper, Gold, Silver, pop_treasures
+from dominion.cards import Province, Copper, Gold, Silver
 from .base import BaseBot
 
 
 class SimpleBuyStrategy(BaseBot):
     def do_turn(self):
-        treasures = pop_treasures(self.turn.hand)
-        self.turn.spend_treasures(*treasures)
+        self.turn.spend_all_treasures()
 
         to_buy = None
-        if treasures.total_treasure_value() >= 8:
+        if self.turn.available_treasure >= 8:
             to_buy = Province
-        elif treasures.total_treasure_value() >= 6:
+        elif self.turn.available_treasure >= 6:
             to_buy = Gold
-        elif treasures.total_treasure_value() >= 3:
+        elif self.turn.available_treasure >= 3:
             to_buy = Silver
         else:
             to_buy = Copper
 
-        if to_buy is not None:
+        if to_buy is not None and self.turn.game.supply.cards[to_buy]:
             self.turn.buy_card(to_buy)

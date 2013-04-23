@@ -28,7 +28,7 @@ extra_3_treasures = partial(extra_treasure, 3)
 
 
 def extra_cards(num_extra, turn, player, **kwargs):
-    turn.hand.add_cards(*(player.draw_card() for i in xrange(num_extra)))
+    turn.hand.add_cards(*player.draw_cards(num_extra))
 
 extra_1_cards = partial(extra_cards, 1)
 extra_2_cards = partial(extra_cards, 2)
@@ -52,7 +52,7 @@ def draw_x_discard_y(x, y, turn, player, card, **kwargs):
         'is_attack': card.is_attack,
         'is_own_cards': player.turn == turn,
     }
-    cards = CardCollection([player.draw_card() for i in xrange(x)])
+    cards = CardCollection(player.draw_cards(x))
     player.select_for_discard(cards, y, **discard_kwargs)
     turn.hand.add_cards(*cards)
 

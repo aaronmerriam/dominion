@@ -1,7 +1,5 @@
 from random import shuffle
 
-from dominion.cards import pop_treasures, pop_actions
-
 from .base import BaseBot, do_nothing
 
 
@@ -11,17 +9,15 @@ class RandomActionStrategy(BaseBot):
         self.do_buys()
 
     def do_actions(self):
-        actions = pop_actions(self.turn.hand)
+        actions = [i for i, card in enumerate(self.turn.hand) if card.is_action]
 
         while self.turn.available_actions and actions:
             if do_nothing(actions):
                 break
-            self.turn.play_action(actions.draw_card())
-        self.turn.discard_cards(*actions)
+            self.turn.play_action(actions.pop())
 
     def do_buys(self):
-        treasures = pop_treasures(self.turn.hand)
-        self.turn.spend_treasures(*treasures)
+        self.turn.spend_all_treasures()
 
         while self.turn.available_buys:
             affordable_cards = self.game.supply.affordable_cards(self.turn.available_treasure)

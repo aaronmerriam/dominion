@@ -90,6 +90,17 @@ class CardCollection(object):
     def total_treasure_value(self):
         return sum(card.treasure_value for card in self)
 
+    def index_of_card(self, card):
+        if isinstance(card, BaseCard):
+            return self.cards.indexof(card)
+        elif issubclass(card, BaseCard):
+            for i in xrange(len(self)):
+                if isinstance(self[i], card):
+                    return i
+            raise IndexError
+        else:
+            raise TypeError('Unknown object passed in as card')
+
     def pop_card(self, index):
         return self.cards.pop(index)
 
