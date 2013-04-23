@@ -34,10 +34,13 @@ class Game(object):
     winner = None
     MAX_ROUNDS = 100
 
-    def __init__(self, player_classes, logger=None):
+    def __init__(self, player_classes, logger=None, action_cards=None):
         assert len(player_classes) > 1, 'Cannot initiate a game with less than 2 players'
         self.player_classes = player_classes
         self.logger = logger
+        if action_cards is None:
+            action_cards = sample(CORE_ACTION_CARDS, 10)
+        self.action_cards = action_cards
 
     def log(self, level, message):
         if self.logger:
@@ -66,13 +69,24 @@ class Game(object):
     def initialize_game(self):
         self.log(logging.DEBUG, 'Begin Game Initialization')
         self.trash = CardCollection()
-        self.supply = Supply(BASE_SUPPLY_CARDS, sample(CORE_ACTION_CARDS, 10))
+        self.supply = Supply(BASE_SUPPLY_CARDS, self.action_cards)
         self.players = []
         self.round = 0
         for i, PlayerClass in enumerate(self.player_classes):
             player = PlayerClass(game=self, deck=build_initial_hand())
             player.set_turn(self.build_turn(player, 0, i))
             self.players.append(player)
+        self.log(logging.DEBUG, 'Finished Game Initialization')
+
+    def reset_game(self):
+        self.log(logging.DEBUG, 'Begin Game Initialization')
+        self.trash = CardCollection()
+        self.supply = Supply(BASE_SUPPLY_CARDS, self.action_cards)
+        self.round = 0
+        self.winner = None
+        for i, player in enumerate(self.players):
+            player.deck = build_initial_hand()
+            player.set_turn(self.build_turn(player, 0, i))
         self.log(logging.DEBUG, 'Finished Game Initialization')
 
     def build_turn(self, player, round=None, turn=None):

@@ -19,3 +19,4 @@ CORE_ACTION_CARDS = (
     Market, Village, Militia, Envoy, Moat, Woodcutter, Workshop,
     Bureaucrat, Gardens, Smithy, Festival, Laboratory,
 )
+ALL_CARDS = TREASURE_CARDS + VICTORY_CARDS + CORE_ACTION_CARDS
