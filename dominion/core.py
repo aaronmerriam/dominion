@@ -12,7 +12,9 @@ from .exceptions import WinCondition
 
 def build_initial_hand():
     cards = [Copper() for i in xrange(7)] + [Estate() for i in xrange(3)]
-    return CardCollection(cards)
+    deck = CardCollection(cards)
+    deck.shuffle()
+    return deck
 
 
 def get_logger(name='dominion', filename=None, level=logging.DEBUG):
@@ -33,7 +35,7 @@ class Game(object):
     turn = None
     winner = None
     log_level = DEFAULT_LOG_LEVEL
-    MAX_ROUNDS = 200
+    MAX_ROUNDS = 25
 
     def __init__(self, player_classes):
         assert len(player_classes) > 1, 'Cannot initiate a game with less than 2 players'
