@@ -42,7 +42,7 @@ def discard_to(discard_to, turn, other_players, card=BaseCard(), **kwargs):
             'is_own_cards': player.turn == turn,
         }
         num_discard = max(0, len(player.turn.hand) - discard_to)
-        player.select_for_discard(player.turn.hand, num_discard, **discard_kwargs)
+        player.select_for_discard(cards=player.turn.hand, num_cards=num_discard, **discard_kwargs)
 
 others_discard_to_3 = partial(discard_to, 3)
 
@@ -53,7 +53,7 @@ def draw_x_discard_y(x, y, turn, player, card, **kwargs):
         'is_own_cards': player.turn == turn,
     }
     cards = CardCollection(player.draw_cards(x))
-    player.select_for_discard(cards, y, **discard_kwargs)
+    player.select_for_discard(cards=cards, num_cards=y, **discard_kwargs)
     turn.hand.add_cards(*cards)
 
 draw_4_discard_1 = partial(draw_x_discard_y, 4, 1)
@@ -62,7 +62,7 @@ draw_4_discard_1 = partial(draw_x_discard_y, 4, 1)
 def free_buy_up_to_x(x, turn, player, **kwargs):
     affordable_cards = turn.game.supply.affordable_cards(x)
     # `card` is a card class
-    cards = player.select_to_add_to_deck(affordable_cards, x)
+    cards = player.select_to_add_to_deck(cards=affordable_cards, num_cards=x)
     for card in cards:
         turn.discard_cards(turn.game.supply.draw_card(card))
 

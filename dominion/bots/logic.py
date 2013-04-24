@@ -132,6 +132,9 @@ def buy_n_of_card_command(card, n, *extra_conditions):
 class BaseLogicBot(BaseBot):
     buy_commands = []
     action_commands = []
+    discard_commands = []
+    add_to_deck_commands = []
+    return_to_deck_commands = []
 
     def do_turn(self):
         self.do_actions()
@@ -156,6 +159,33 @@ class BaseLogicBot(BaseBot):
         self.turn.spend_all_treasures()
         for command in self.buy_commands:
             if command(**self.get_command_kwargs()) is False:
+                break
+            continue
+
+    def select_for_discard(self, **kwargs):
+        """
+        kwargs = cards, num_cards, is_attack, is_own_cards
+        """
+        for command in self.discard_commands:
+            if command(**self.get_command_kwargs(**kwargs)) is False:
+                break
+            continue
+
+    def select_to_add_to_deck(self, **kwargs):
+        """
+        kwargs = cards, num_cards
+        """
+        for command in self.add_to_deck_commands:
+            if command(**self.get_command_kwargs(**kwargs)) is False:
+                break
+            continue
+
+    def select_to_return_to_deck(self, **kwargs):
+        """
+        kwargs = cards, num_cards, is_attack, is_own_cards
+        """
+        for command in self.return_to_deck_commands:
+            if command(**self.get_command_kwargs(**kwargs)) is False:
                 break
             continue
 
